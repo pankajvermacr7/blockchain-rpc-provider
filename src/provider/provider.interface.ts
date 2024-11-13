@@ -1,7 +1,6 @@
 import { JsonRpcEngine, JsonRpcMiddleware, JsonRpcRequest } from "json-rpc-engine";
 
 export interface providerInterface{
-    getRedisClient: () => any;
     allowStaleOnFailure: boolean;
     engine : JsonRpcEngine;
     isCacheEnabled: boolean;

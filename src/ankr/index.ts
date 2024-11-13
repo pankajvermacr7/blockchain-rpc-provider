@@ -1,9 +1,11 @@
 import { AnkrMultiChainProvider } from "./ankrMultiChainProvider";
-import { AnkrSolanaProvider } from "./ankrSolanaProvider";
+import { AnkrSolanaDevNetProvider } from "./ankrSolanaDevNetProvider";
+import { AnkrSolanaMainNetProvider } from "./ankrSolanaMainNetProvider";
 import { AnkrConfig } from "./type";
 
 export { 
     AnkrMultiChainProvider,
-    AnkrSolanaProvider,
+    AnkrSolanaMainNetProvider,
+    AnkrSolanaDevNetProvider,
     AnkrConfig,
    };

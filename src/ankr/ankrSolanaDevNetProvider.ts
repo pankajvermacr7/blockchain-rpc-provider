@@ -3,10 +3,10 @@ import { ProviderConfig } from "../provider/types";
 import { AnkrConfig } from "./type";
 import { ANKR_PROVIDER_ENDPOINTS } from "./enum";
 
-export class AnkrMultiChainProvider extends ProviderBase {
+export class AnkrSolanaDevNetProvider extends ProviderBase {
     constructor(providerConfig: ProviderConfig, ankrConfig: AnkrConfig) {
         super(providerConfig);
-        this.url = `${ankrConfig.ANKR_BASE_URL}/${ANKR_PROVIDER_ENDPOINTS.MULTICHAIN}/${ankrConfig.ANKR_API_KEY}`;
-        this.source = AnkrMultiChainProvider.name;
+        this.url = `${ankrConfig.ANKR_BASE_URL}/${ANKR_PROVIDER_ENDPOINTS.SOLANA_DEVNET}/${ankrConfig.ANKR_API_KEY}`;
+        this.source = AnkrSolanaDevNetProvider.name;
     }
-}   
+}

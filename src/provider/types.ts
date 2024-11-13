@@ -1,5 +1,7 @@
-export type providerConfig = {
+export type SeverityLevel = 'fatal' | 'error' | 'warning' | 'log' | 'info' | 'debug';
+export type ProviderConfig = {
     getRedisClient: () => any;
+    sendErrorToSentry: (err: Error, tags: Record<string, string> , level: SeverityLevel) => void;
     allowStaleOnFailure: boolean;
     requestIdCounter: number;
     isCacheEnabled: boolean;
