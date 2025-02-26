@@ -4,9 +4,9 @@ import { AnkrConfig } from "./type";
 import { ANKR_PROVIDER_ENDPOINTS } from "./enum";
 
 export class AnkrMultiChainProvider extends ProviderBase {
-    constructor(providerConfig: ProviderConfig, ankrConfig: AnkrConfig) {
+    constructor(providerConfig: ProviderConfig) {
         super(providerConfig);
-        this.url = `${ankrConfig.ANKR_BASE_URL}/${ANKR_PROVIDER_ENDPOINTS.MULTICHAIN}/${ankrConfig.ANKR_API_KEY}`;
+        this.url = `https://rpc.ankr.com/${ANKR_PROVIDER_ENDPOINTS.MULTICHAIN}/${providerConfig.ankrConfig.API_KEY}`;
         this.source = AnkrMultiChainProvider.name;
     }
 }   

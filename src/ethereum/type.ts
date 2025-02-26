@@ -1,3 +1,3 @@
 export type InfuraConfig = {
-    INFURA_PROJECT_ID: string;
+    API_KEY: string;
 }

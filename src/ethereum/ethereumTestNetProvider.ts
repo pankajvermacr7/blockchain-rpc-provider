@@ -3,9 +3,9 @@ import { ProviderConfig } from "../provider/types";
 import { InfuraConfig } from "./type";
 
 export class EthereumTestNetProvider extends ProviderBase {
-    constructor(providerConfig: ProviderConfig, config: InfuraConfig) {
+    constructor(providerConfig: ProviderConfig) {
         super(providerConfig);
-        this.url = `https://rinkeby.infura.io/v3/${config.INFURA_PROJECT_ID}`;
+        this.url = `https://rinkeby.infura.io/v3/${providerConfig.infuraConfig.API_KEY}`;
         this.source = EthereumTestNetProvider.name;
     }
 }

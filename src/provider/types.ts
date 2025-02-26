@@ -1,3 +1,6 @@
+import { AnkrConfig } from "../ankr/type";
+import { InfuraConfig } from "../ethereum/type";
+
 export type SeverityLevel = 'fatal' | 'error' | 'warning' | 'log' | 'info' | 'debug';
 export type ProviderConfig = {
     getRedisClient: () => any;
@@ -6,4 +9,6 @@ export type ProviderConfig = {
     requestIdCounter: number;
     isCacheEnabled: boolean;
     cacheAbleMethods: string[];
+    ankrConfig: AnkrConfig;
+    infuraConfig: InfuraConfig;
 }

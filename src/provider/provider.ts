@@ -76,7 +76,7 @@ export abstract class ProviderBase implements providerInterface {
     createAsyncRequestMiddleware(){
         return createAsyncMiddleware(async (req, res, next) => {
             try {
-                const response = await this.fetch(this.url, req);
+                const response = await this.fetch(req);
                 res.result = response;
             } catch (error:any) {
                 res.result = undefined;
@@ -85,14 +85,17 @@ export abstract class ProviderBase implements providerInterface {
           });
     }
 
-    async fetch(url: string, request: JsonRpcRequest<any>): Promise<any> {
+    async fetch(request: JsonRpcRequest<any>): Promise<any> {
+        if (this.url === "") {
+            throw new Error("URL is empty");
+        }
         try {
-            const response = await axios.post(url, request, {
+            const response = await axios.post(this.url, request, {
                 headers: {
                     'Content-Type': 'application/json',
                 },
             });
-            return response.data;
+            return response;
         } catch (error: any) {
             throw error;
         }
