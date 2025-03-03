@@ -2,7 +2,7 @@ import { AnkrConfig, AnkrMultiChainProvider, AnkrSolanaDevNetProvider, AnkrSolan
 import { BaseMainNetProvider, BaseSepoliaProvider } from "./base";
 import { EthereumMainNetProvider, EthereumSepoliaProvider, EthereumTestNetProvider } from "./ethereum";
 import { ProviderBase, providerInterface } from "./provider";
-import { ProviderConfig } from "./provider/types";
+import { getEndpoints, ProviderConfig } from "./provider/types";
 
 export { 
   ProviderConfig,
@@ -23,7 +23,7 @@ export {
 };
 
 export function getProvider(blockchain: string, network: string, config: ProviderConfig): ProviderBase | undefined {
-
+  config.endpoints = getEndpoints(blockchain, network, config);
   if (blockchain === 'ethereum') {
     switch (network) {
       case 'mainnet':

@@ -1,11 +1,12 @@
-import axios from "axios";
-import { ProviderConfig, SeverityLevel } from "./types";
+import axios, { AxiosError, AxiosResponse } from "axios";
+import { EndpointStatus, ProviderConfig, SeverityLevel } from "./types";
 import { providerInterface } from "./provider.interface";
 import RpcEngine, { createAsyncMiddleware, JsonRpcEngine, JsonRpcFailure, JsonRpcRequest, JsonRpcResponse, JsonRpcSuccess } from 'json-rpc-engine';
 import { CacheManager } from "../cache/cache";
 import { ANKR_API_UPDATE_INTERVAL } from "../ankr/cacheConfig";
 
 export abstract class ProviderBase implements providerInterface {
+
     readonly allowStaleOnFailure: boolean;
     readonly isCacheEnabled: boolean = false;
     readonly cacheAbleMethods: string[] = [];
@@ -16,6 +17,14 @@ export abstract class ProviderBase implements providerInterface {
     protected source: string = ProviderBase.name;
     protected config: ProviderConfig;
     static sendErrorToSentry: (err: Error, tags: Record<string, string> , level: SeverityLevel) => void;
+
+    // retry logic properties
+    protected endpoints: EndpointStatus[] = [];
+    protected currentEndpointIndex: number = 0;
+    private readonly MAX_RETRIES: number = 3;
+    private readonly RETRY_DELAY: number = 1000;
+    private readonly UNHEALTHY_THRESHOLD: number = 5; // Mark unhealthy after N failures
+    private readonly HEALTH_CHECK_INTERVAL: number = 30000; // 30 seconds
 
     constructor(providerConfig: ProviderConfig) {
         this.config = providerConfig;
@@ -33,6 +42,15 @@ export abstract class ProviderBase implements providerInterface {
             this.cacheManager = new CacheManager(providerConfig.getRedisClient);
         }
         this.engine.push(this.createAsyncRequestMiddleware());
+
+        this.endpoints = this.config.endpoints.map(endpoint => ({
+            ...endpoint,
+            healthy: true,
+            lastUsed: Date.now(),
+            retryCount: 0
+        }));
+        // Start periodic health checks
+        setInterval(() => this.checkEndpointHealth(), this.HEALTH_CHECK_INTERVAL);
     }
 
     async sendAsync(request: JsonRpcRequest<any>): Promise<JsonRpcResponse<any>> {
@@ -43,7 +61,7 @@ export abstract class ProviderBase implements providerInterface {
 
     cacheMiddleware(){
         return createAsyncMiddleware(async (req, res, next) => {
-            if(!this.cacheAbleMethods.includes(req.method)){
+            if(!this.cacheAbleMethods.includes("*") && !this.cacheAbleMethods.includes(req.method)){
                 next();
             }else{
                 const key = `${this.source}:${req.method}:${JSON.stringify(req.params)}`;
@@ -56,16 +74,24 @@ export abstract class ProviderBase implements providerInterface {
                         const staleData = await this.cacheManager?.getKey(key);
                         if(staleData){
                             const err = new Error(`Send Stale Data for key: ${key}`);
-                            ProviderBase.Sentry(err, {"Veera-Middleware": this.source}, "warning");
-                            delete res.error;
                             res.result = staleData;
+                            delete res.error;
+                            ProviderBase.Sentry(err, {"Veera-Middleware": this.source}, "warning");
                         }else{
                             const err = new Error(`${res.error?.message} | and Stale Data not found for key: ${key}`);
                             err.stack = res.error?.stack;
+                            res.error = {
+                                code: -32000,
+                                message:  err.message,
+                                data: {
+                                    message: err.message,
+                                    stack: err.stack
+                                }
+                            }
                             ProviderBase.Sentry(err, {"Veera-Middleware": this.source}, "error");
                         }
                     }else if(res.result){
-                        const ttl :number | undefined =  ANKR_API_UPDATE_INTERVAL[req.method as keyof typeof ANKR_API_UPDATE_INTERVAL] || undefined;
+                        const ttl :number | undefined =  ANKR_API_UPDATE_INTERVAL[req.method as keyof typeof ANKR_API_UPDATE_INTERVAL] || 30;
                         this.cacheManager?.setCacheData(key,res.result, ttl);
                     }
                 }
@@ -79,27 +105,66 @@ export abstract class ProviderBase implements providerInterface {
                 const response = await this.fetch(req);
                 res.result = response;
             } catch (error:any) {
-                res.result = undefined;
+              res.error = {
+                code: -32000,
+                message: error.message,
+                data: {
+                  message: error.message,
+                  stack: error.stack
+                }
+              }
                 ProviderBase.Sentry(error, {"Veera-Middleware": this.source}, "error");
             }
           });
     }
 
     async fetch(request: JsonRpcRequest<any>): Promise<any> {
-        if (this.url === "") {
-            throw new Error("URL is empty");
-        }
-        try {
-            const response = await axios.post(this.url, request, {
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-            });
-            return response;
-        } catch (error: any) {
-            throw error;
-        }
-    }
+      let lastError: Error | undefined;
+      const totalEndpoints = this.endpoints.length;
+
+      for (let retry = 0; retry < this.MAX_RETRIES; retry++) {
+          for (let i = 0; i < totalEndpoints; i++) {
+              const endpointIndex = (this.currentEndpointIndex + i) % totalEndpoints;
+              const endpoint = this.endpoints[endpointIndex];
+              if (!endpoint.healthy) continue;
+
+              try {
+                  const response = await axios.post(endpoint.url, request, {
+                      headers: { 'Content-Type': 'application/json' },
+                      timeout: endpoint.timeout || 10000
+                  });
+
+                  if (this.isResponseValid(response)) {
+                      endpoint.retryCount = 0;
+                      this.currentEndpointIndex = endpointIndex;
+                      return response.data;
+                  } else {
+                      throw new Error(`Invalid response from ${endpoint.maskedUrl}`);
+                  }
+              } catch (error) {
+                  lastError = error as Error;
+                  this.handleEndpointError(endpoint, error);
+                  if (!this.shouldRetry(error)) break;
+              }
+          }
+          await this.delay(this.RETRY_DELAY * (2 ** retry));
+      }
+
+      // Final attempt ignoring health status
+      for (const endpoint of this.endpoints) {
+          try {
+              const response = await axios.post(endpoint.url, request, {
+                  headers: { 'Content-Type': 'application/json' },
+                  timeout: endpoint.timeout || 10000
+              });
+              if (this.isResponseValid(response)) return response.data;
+          } catch (error) {
+              lastError = error as Error;
+          }
+      }
+
+      throw lastError || new Error("All endpoints failed after retries");
+  }
 
     static Sentry(err: Error, tags: Record<string, string>, level: SeverityLevel) {
         try {
@@ -109,6 +174,84 @@ export abstract class ProviderBase implements providerInterface {
         } catch (error) {
             console.error("Error sending error to Sentry From Veera-Middleware:", error);
         }
+    }
+
+    private getNextEndpoint(): EndpointStatus | undefined {
+        let attempts = 0;
+        while (attempts++ < this.endpoints.length) {
+          this.currentEndpointIndex = 
+            (this.currentEndpointIndex + 1) % this.endpoints.length;
+          const endpoint = this.endpoints[this.currentEndpointIndex];
+          
+          if (endpoint.healthy) {
+            endpoint.lastUsed = Date.now();
+            return endpoint;
+          }
+        }
+        return undefined;
+    }
+
+    private async checkEndpointHealth(): Promise<void> {
+        for (const endpoint of this.endpoints) {
+          try {
+            const response = await axios.post(endpoint.url, {
+              jsonrpc: '2.0',
+              id: 1,
+              method: 'eth_blockNumber',
+              params: []
+            }, { timeout: 5000 });
+    
+            const currentBlock = parseInt(response.data.result);
+            endpoint.blockHeight = currentBlock;
+            
+            if (!endpoint.healthy) {
+              console.log(`Endpoint ${endpoint.maskedUrl} recovered`);
+              endpoint.healthy = true;
+              endpoint.retryCount = 0;
+            }
+          } catch (error) {
+            if (endpoint.healthy) {
+              console.warn(`Marking endpoint ${endpoint.maskedUrl} as unhealthy`);
+              endpoint.healthy = false;
+            }
+            this.handleEndpointError(endpoint, error);
+          }
+        }
+    }
+
+    private async handleEndpointError(endpoint: EndpointStatus, error: any): Promise<void> {
+        endpoint.retryCount++;
+        const tags = {
+            "Veera-Middleware": this.source,
+            endpoint: endpoint.maskedUrl
+        };
+
+        if (endpoint.retryCount >= this.UNHEALTHY_THRESHOLD) {
+            endpoint.healthy = false;
+            const err = new Error(`Endpoint marked unhealthy: ${endpoint.maskedUrl}`);
+            ProviderBase.Sentry(err, tags, "error");
+            // Todo: Send Slack alert here
+        } else {
+            ProviderBase.Sentry(error, tags, "warning");
+        }
+    }
+
+    private isResponseValid(response: AxiosResponse): boolean {
+        if (response.status < 200 || response.status >= 300) return false;
+        if (response.data.error) return false;
+        
+        // Add chain-specific validation if needed
+        return true;
+    }
+    
+    private shouldRetry(error: unknown): boolean {
+        if (!axios.isAxiosError(error)) return true;
+        const status = error.response?.status;
+        return status === undefined || status >= 500 || status === 429 || status === 408;
+    }
+    
+    private delay(ms: number): Promise<void> {
+        return new Promise(resolve => setTimeout(resolve, ms));
     }
 
 }
