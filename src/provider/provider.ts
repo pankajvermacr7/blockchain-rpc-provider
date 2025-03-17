@@ -47,7 +47,8 @@ export abstract class ProviderBase implements providerInterface {
             ...endpoint,
             healthy: true,
             lastUsed: Date.now(),
-            retryCount: 0
+            retryCount: 0,
+            healthCheck: endpoint.healthCheck
         }));
         // Start periodic health checks
         setInterval(() => this.checkEndpointHealth(), this.HEALTH_CHECK_INTERVAL);
@@ -197,8 +198,8 @@ export abstract class ProviderBase implements providerInterface {
             const response = await axios.post(endpoint.url, {
               jsonrpc: '2.0',
               id: 1,
-              method: 'eth_blockNumber',
-              params: []
+              method: endpoint.healthCheck?.method || 'eth_blockNumber',
+              params: endpoint.healthCheck?.params || []
             }, { timeout: 5000 });
     
             const currentBlock = parseInt(response.data.result);

@@ -24,10 +24,16 @@ export interface EndpointStatus extends RpcEndpoint {
     blockHeight?: number;
 }
 
+export interface RpcEndpointHealthCheck {
+  method: string;
+  params: any[];
+}
+
 export interface RpcEndpoint {
     url: string;
     maskedUrl: string;
     timeout?: number;
+    healthCheck?: RpcEndpointHealthCheck;
 }
 
 export const getEndpoints = (blockchain: string, network: string, config: ProviderConfig): EndpointStatus[] => {
