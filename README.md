@@ -1,4 +1,4 @@
-# Veera Chain Providers
+# BlockChain RPC Providers
 
 A robust multi-chain RPC provider with automatic failover, health monitoring, and caching capabilities.
 
@@ -23,12 +23,12 @@ A robust multi-chain RPC provider with automatic failover, health monitoring, an
 ## Installation
 
 ```bash
-npm install veera-middleware
+npm install blockchain-rpc-provider
 ```
 
 ## Basic Usage
 ```typescript
-import { getProvider, ProviderConfig } from 'veera-middleware';
+import { getProvider, ProviderConfig } from 'blockchain-rpc-provider';
 
 // 1. Configure endpoints
 const NETWORK_ENDPOINTS = {
@@ -144,18 +144,18 @@ Contextual error metadata
 Here's a concise README.md:
 
 ```markdown
-# Veera Chain Provider
+# blockchain-rpc-provider
 
 ## Quick Start
 
 ### Installation
 ```bash
-npm install veera-middleware
+npm install blockchain-rpc-provider
 ```
 
 ### Basic Usage
 ```typescript
-import { getProvider } from 'veera-middleware';
+import { getProvider } from 'blockchain-rpc-provider';
 
 // 1. Configure endpoints
 const NETWORK_ENDPOINTS = {

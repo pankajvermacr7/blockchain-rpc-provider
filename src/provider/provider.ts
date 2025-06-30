@@ -77,7 +77,7 @@ export abstract class ProviderBase implements providerInterface {
                             const err = new Error(`Send Stale Data for key: ${key}`);
                             res.result = staleData;
                             console.warn(`Send Stale Data for key: ${key}`);
-                            ProviderBase.Sentry(err, {"Veera-Middleware": this.source}, "warning");
+                            ProviderBase.Sentry(err, {"blockchain-rpc-provider": this.source}, "warning");
                         }else{
                             const err = new Error(`${res.error?.message} | and Stale Data not found for key: ${key}`);
                             err.stack = res.error?.stack;
@@ -90,7 +90,7 @@ export abstract class ProviderBase implements providerInterface {
                                 }
                             }
                             console.error(`${res.error?.message} | and Stale Data not found for key: ${key}`);
-                            ProviderBase.Sentry(err, {"Veera-Middleware": this.source}, "error");
+                            ProviderBase.Sentry(err, {"blockchain-rpc-provider": this.source}, "error");
                         }
                     }else if(res.result){
                         const ttl :number | undefined =  ANKR_API_UPDATE_INTERVAL[req.method as keyof typeof ANKR_API_UPDATE_INTERVAL] || 30;
@@ -108,7 +108,7 @@ export abstract class ProviderBase implements providerInterface {
                 res.result = response;
             } catch (error:any) {
                 res.result = null;
-                ProviderBase.Sentry(error, {"Veera-Middleware": this.source}, "error");
+                ProviderBase.Sentry(error, {"blockchain-rpc-provider": this.source}, "error");
             }
           });
     }
@@ -167,7 +167,7 @@ export abstract class ProviderBase implements providerInterface {
                 ProviderBase.sendErrorToSentry(err, tags, level);
             }
         } catch (error) {
-            console.error("Error sending error to Sentry From Veera-Middleware:", error);
+            console.error("Error sending error to Sentry From blockchain-rpc-provider:", error);
         }
     }
 
@@ -223,7 +223,7 @@ export abstract class ProviderBase implements providerInterface {
     private async handleEndpointError(endpoint: EndpointStatus, error: any): Promise<void> {
         endpoint.retryCount++;
         const tags = {
-            "Veera-Middleware": this.source,
+            "blockchain-rpc-provider": this.source,
             endpoint: endpoint.maskedUrl
         };
 

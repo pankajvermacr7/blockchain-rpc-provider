@@ -22,7 +22,7 @@ export class CacheManager implements cacheInterface {
         const exists = await client.exists(key);
         return exists? true : false;
       } catch (error:any) {
-        ProviderBase.Sentry(error, { "Veera-Middleware": CacheManager.name }, "error");
+        ProviderBase.Sentry(error, { "blockchain-rpc-provider": CacheManager.name }, "error");
         return false;
       }
         
@@ -51,7 +51,7 @@ export class CacheManager implements cacheInterface {
           client.set(key, data);
         }
       } catch (error : any) {
-        ProviderBase.Sentry(error, { "Veera-Middleware": CacheManager.name }, "error");
+        ProviderBase.Sentry(error, { "blockchain-rpc-provider": CacheManager.name }, "error");
       }
     };  
       
@@ -64,7 +64,7 @@ export class CacheManager implements cacheInterface {
           const value = await client.get(key);
           return value ? JSON.parse(value) : null;
         } catch (err:any) {
-          ProviderBase.Sentry(err, { "Veera-Middleware": CacheManager.name }, "error");
+          ProviderBase.Sentry(err, { "blockchain-rpc-provider": CacheManager.name }, "error");
           return null;
         }
       };

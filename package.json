@@ -1,5 +1,5 @@
 {
-  "name": "veera-middleware",
+  "name": "blockchain-rpc-provider",
   "version": "1.0.0",
   "description": "Provide a middleware for various type request including RPC , HTTP based , Caching , Error Handling",
   "main": "index.js",
@@ -8,13 +8,13 @@
     "build": "tsc"
   },
   "keywords": [
-    "Veera",
+    "blockchain",
     "JsonRPC",
     "Middleaware",
     "Caching"
   ],
-  "author": "veera",
-  "license": "ISC",
+  "author": "pankajvermacr7@gmail.com",
+  "license": "MIT",
   "devDependencies": {
     "ts-node": "^10.9.2",
     "typescript": "^5.6.3"
