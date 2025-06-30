@@ -24,7 +24,7 @@ export abstract class ProviderBase implements providerInterface {
     private readonly MAX_RETRIES: number = 3;
     private readonly RETRY_DELAY: number = 1000;
     private readonly UNHEALTHY_THRESHOLD: number = 5; // Mark unhealthy after N failures
-    private readonly HEALTH_CHECK_INTERVAL: number = 30000; // 30 seconds
+    private readonly HEALTH_CHECK_INTERVAL: number = 300000; // 300 seconds or 5 minutes
 
     constructor(providerConfig: ProviderConfig) {
         this.config = providerConfig;
@@ -73,10 +73,10 @@ export abstract class ProviderBase implements providerInterface {
                     await next();
                     if(!res.result && this.allowStaleOnFailure){
                         const staleData = await this.cacheManager?.getKey(key);
-                        if(staleData){
+                        if(!staleData){
                             const err = new Error(`Send Stale Data for key: ${key}`);
                             res.result = staleData;
-                            delete res.error;
+                            console.warn(`Send Stale Data for key: ${key}`);
                             ProviderBase.Sentry(err, {"Veera-Middleware": this.source}, "warning");
                         }else{
                             const err = new Error(`${res.error?.message} | and Stale Data not found for key: ${key}`);
@@ -89,6 +89,7 @@ export abstract class ProviderBase implements providerInterface {
                                     stack: err.stack
                                 }
                             }
+                            console.error(`${res.error?.message} | and Stale Data not found for key: ${key}`);
                             ProviderBase.Sentry(err, {"Veera-Middleware": this.source}, "error");
                         }
                     }else if(res.result){
@@ -106,14 +107,7 @@ export abstract class ProviderBase implements providerInterface {
                 const response = await this.fetch(req);
                 res.result = response;
             } catch (error:any) {
-              res.error = {
-                code: -32000,
-                message: error.message,
-                data: {
-                  message: error.message,
-                  stack: error.stack
-                }
-              }
+                res.result = null;
                 ProviderBase.Sentry(error, {"Veera-Middleware": this.source}, "error");
             }
           });
@@ -201,6 +195,12 @@ export abstract class ProviderBase implements providerInterface {
               method: endpoint.healthCheck?.method || 'eth_blockNumber',
               params: endpoint.healthCheck?.params || []
             }, { timeout: 5000 });
+
+            if (!response.data.result) {
+                console.error(`Invalid health check response from ${endpoint.maskedUrl} : ${endpoint.healthCheck.method} - ${JSON.stringify(response.data)}`);
+            }else{
+                console.log(`Health check response from ${endpoint.maskedUrl} : ${endpoint.healthCheck.method} - ${response.data.result}`);
+            }
     
             const currentBlock = parseInt(response.data.result);
             endpoint.blockHeight = currentBlock;
@@ -212,7 +212,7 @@ export abstract class ProviderBase implements providerInterface {
             }
           } catch (error) {
             if (endpoint.healthy) {
-              console.warn(`Marking endpoint ${endpoint.maskedUrl} as unhealthy`);
+              console.warn(`Marking endpoint ${endpoint.maskedUrl} as unhealthy : ${error}`);
               endpoint.healthy = false;
             }
             this.handleEndpointError(endpoint, error);

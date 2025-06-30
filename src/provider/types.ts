@@ -32,8 +32,8 @@ export interface RpcEndpointHealthCheck {
 export interface RpcEndpoint {
     url: string;
     maskedUrl: string;
+    healthCheck: RpcEndpointHealthCheck;
     timeout?: number;
-    healthCheck?: RpcEndpointHealthCheck;
 }
 
 export const getEndpoints = (blockchain: string, network: string, config: ProviderConfig): EndpointStatus[] => {
@@ -56,7 +56,8 @@ export const getEndpoints = (blockchain: string, network: string, config: Provid
       retryCount: 0,
       url: endpointInfo.url,
       maskedUrl: endpointInfo.maskedUrl,
-      timeout: 10000
+      timeout: 10000,
+      healthCheck: endpointInfo.healthCheck,
     }));
     
     return config.endpoints;
